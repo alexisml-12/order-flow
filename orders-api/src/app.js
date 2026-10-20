@@ -23,7 +23,9 @@ function createApp({ repo, corsOrigin = '*' }) {
   app.post('/orders', async (req, res) => {
     const { errors, value } = validateOrderInput(req.body);
 
-    if (errors.length === 0 && !(await repo.skuExists(value.sku))) {
+    // Consultamos el catálogo siempre que haya un sku, para devolver TODOS los errores a la vez.
+    // (Si el sku viene vacío, validateOrderInput ya reportó que es obligatorio.)
+    if (value.sku && !(await repo.skuExists(value.sku))) {
       errors.push({ campo: 'sku', mensaje: `El sku "${value.sku}" no existe en el catálogo` });
     }
 
