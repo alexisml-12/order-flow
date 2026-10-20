@@ -1,0 +1,15 @@
+# Versión de desarrollo (etapa 2): solo levanta SQL Server.
+# En la etapa 6 este archivo crecerá para levantar TODO el sistema.
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+
+volumes:
+  sqlserver-data:
