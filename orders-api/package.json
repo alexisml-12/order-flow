@@ -11,6 +11,7 @@
     "dev": "node --env-file=../.env --watch src/index.js"
   },
   "dependencies": {
+    "amqplib": "^0.10.5",
     "express": "^5.1.0",
     "mssql": "^11.0.1"
   }

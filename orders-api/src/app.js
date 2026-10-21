@@ -5,7 +5,7 @@ const GUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 
 // createApp recibe sus dependencias (repo) por parámetro: así en los tests
 // podemos pasarle un repositorio falso sin necesidad de SQL Server.
-function createApp({ repo, corsOrigin = '*' }) {
+function createApp({ repo, publisher, corsOrigin = '*' }) {
   const app = express();
   app.use(express.json());
 
@@ -33,8 +33,18 @@ function createApp({ repo, corsOrigin = '*' }) {
       return res.status(400).json({ error: 'Datos inválidos', detalles: errors });
     }
 
+    //Crea el pedido en la base de datos con estado Pending. El id es un GUID generado por el servidor.
     const order = await repo.create(value);
-    // Etapa 3: aquí se publicará el evento OrderCreated en RabbitMQ.
+
+    // El pedido ya está guardado como Pending. Publicamos el evento para que Inventory lo procese.
+    // Si la publicación falla, el pedido NO se pierde: queda Pending y se loguea el error.
+    // Etapa 4: aquí se agregará el reintento de publicación para los pedidos que no llegaron al broker.
+    try {
+      await publisher.publishOrderCreated(order);
+    } catch (err) {
+      console.error(`No se pudo publicar OrderCreated del pedido ${order.id}:`, err.message);
+    }
+
     return res.status(201).json(order);
   });
 

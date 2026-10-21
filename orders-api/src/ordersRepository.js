@@ -33,7 +33,7 @@ function createOrdersRepository(pool) {
                  inserted.cantidad, inserted.estado, inserted.creadoEn
           VALUES (@id, @clienteNombre, @sku, @cantidad)
         `);
-      return mapOrder(result.recordset[0]);
+      return mapOrder(result.recordset[0]); // Devuelve el pedido recién creado, con estado Pending y creadoEn.
     },
 
     async list() {

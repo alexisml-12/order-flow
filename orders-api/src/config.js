@@ -8,10 +8,20 @@ function required(name) {
   return value;
 }
 
+function buildRabbitUrl() {
+  const host = required('RABBITMQ_HOST');
+  const port = process.env.RABBITMQ_PORT || '5672';
+  // encodeURIComponent protege si la contraseña tiene caracteres como @ o /
+  const user = encodeURIComponent(required('RABBITMQ_USER'));
+  const password = encodeURIComponent(required('RABBITMQ_PASSWORD'));
+  return `amqp://${user}:${password}@${host}:${port}`;
+}
+
 function loadConfig() {
   return {
     port: Number(process.env.PORT || 3000),
     corsOrigin: process.env.CORS_ORIGIN || '*',
+    rabbitUrl: buildRabbitUrl(),
     db: {
       server: required('DB_HOST'),
       port: Number(process.env.DB_PORT || 1433),

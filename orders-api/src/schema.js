@@ -21,6 +21,15 @@ IF OBJECT_ID('dbo.Orders', 'U') IS NULL
                   CONSTRAINT DF_Orders_creadoEn DEFAULT SYSUTCDATETIME()
   );
 
+IF OBJECT_ID('dbo.ProcessedEvents', 'U') IS NULL
+  CREATE TABLE dbo.ProcessedEvents (
+    eventId     UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+    orderId     UNIQUEIDENTIFIER NOT NULL,
+    resultado   NVARCHAR(20)     NOT NULL CHECK (resultado IN ('StockReserved', 'StockRejected')),
+    procesadoEn DATETIME2        NOT NULL
+                CONSTRAINT DF_ProcessedEvents_procesadoEn DEFAULT SYSUTCDATETIME()
+  );
+
 MERGE dbo.Products AS target
 USING (VALUES
   ('ABC-01', N'Camiseta básica', 100),

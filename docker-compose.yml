@@ -1,4 +1,4 @@
-# Versión de desarrollo (etapa 2): solo levanta SQL Server.
+# Versión de desarrollo (etapa 3): SQL Server y RabbitMQ.
 # En la etapa 6 este archivo crecerá para levantar TODO el sistema.
 services:
   sqlserver:
@@ -11,5 +11,17 @@ services:
     volumes:
       - sqlserver-data:/var/opt/mssql
 
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports:
+      - "5672:5672"     # puerto AMQP: por aquí hablan los servicios
+      - "15672:15672"   # panel web de administración: http://localhost:15672
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+
 volumes:
   sqlserver-data:
+  rabbitmq-data:
