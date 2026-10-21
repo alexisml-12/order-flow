@@ -14,13 +14,14 @@ function buildRabbitUrl() {
   // encodeURIComponent protege si la contraseña tiene caracteres como @ o /
   const user = encodeURIComponent(required('RABBITMQ_USER'));
   const password = encodeURIComponent(required('RABBITMQ_PASSWORD'));
-  return `amqp://${user}:${password}@${host}:${port}`;
+  return `amqp://${user}:${password}@${host}:${port}/%2F?heartbeat=30`;
 }
 
 function loadConfig() {
   return {
     port: Number(process.env.PORT || 3000),
     corsOrigin: process.env.CORS_ORIGIN || '*',
+    outboxIntervalMs: Number(process.env.OUTBOX_INTERVAL_MS || 10000),
     rabbitUrl: buildRabbitUrl(),
     db: {
       server: required('DB_HOST'),

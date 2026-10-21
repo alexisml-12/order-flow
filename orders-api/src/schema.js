@@ -18,7 +18,10 @@ IF OBJECT_ID('dbo.Orders', 'U') IS NULL
                   CONSTRAINT DF_Orders_estado DEFAULT 'Pending'
                   CHECK (estado IN ('Pending', 'Confirmed', 'Rejected')),
     creadoEn      DATETIME2        NOT NULL
-                  CONSTRAINT DF_Orders_creadoEn DEFAULT SYSUTCDATETIME()
+                  CONSTRAINT DF_Orders_creadoEn DEFAULT SYSUTCDATETIME(),
+    eventId       UNIQUEIDENTIFIER NOT NULL
+                  CONSTRAINT DF_Orders_eventId DEFAULT NEWID(),
+    publicadoEn   DATETIME2        NULL
   );
 
 IF OBJECT_ID('dbo.ProcessedEvents', 'U') IS NULL

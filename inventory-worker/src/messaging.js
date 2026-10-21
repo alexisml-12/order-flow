@@ -28,10 +28,13 @@ async function connectWithRetry(url, { retries = 30, delayMs = 2000 } = {}) {
   }
 }
 
-async function createMessaging(url) {
+async function createMessaging(url, { onConnectionLost } = {}) {
+  let closing = false;
   const connection = await connectWithRetry(url);
   connection.on('error', (err) => console.error('Error en la conexión con RabbitMQ:', err.message));
-  connection.on('close', () => console.warn('La conexión con RabbitMQ se cerró'));
+  connection.on('close', () => {
+    if (!closing) onConnectionLost?.();
+  });
 
   const channel = await connection.createConfirmChannel();
   await channel.assertExchange(EXCHANGE, 'direct', { durable: true });
@@ -40,9 +43,9 @@ async function createMessaging(url) {
   await channel.bindQueue(QUEUES.orderCreated, EXCHANGE, ROUTING_KEYS.orderCreated);// aqui se especifica la regla "los mensajes con etiqueta order.created del exchange orderflow van a esta cola"
 
   // Cola donde Orders API (etapa 4) leerá los resultados. Recibe tanto reservas como rechazos.
-  await channel.assertQueue(QUEUES.stockResult, { durable: true });
-  await channel.bindQueue(QUEUES.stockResult, EXCHANGE, ROUTING_KEYS.stockReserved);
-  await channel.bindQueue(QUEUES.stockResult, EXCHANGE, ROUTING_KEYS.stockRejected);
+  await channel.assertQueue(QUEUES.stockResult, { durable: true }); // Declaramos la cola de resultados de stock (si no existía, se crea; si ya existía, no hace nada).
+  await channel.bindQueue(QUEUES.stockResult, EXCHANGE, ROUTING_KEYS.stockReserved); // aqui se especifica la regla "los mensajes con etiqueta stock.reserved del exchange orderflow van a esta cola"
+  await channel.bindQueue(QUEUES.stockResult, EXCHANGE, ROUTING_KEYS.stockRejected); // aqui se especifica la regla "los mensajes con etiqueta stock.rejected del exchange orderflow van a esta cola"
 
   return {
     async publishStockResult(resultado, orderEvent) {
@@ -58,7 +61,7 @@ async function createMessaging(url) {
       const routingKey =
         resultado === 'StockReserved' ? ROUTING_KEYS.stockReserved : ROUTING_KEYS.stockRejected;
 
-      channel.publish(EXCHANGE, routingKey, Buffer.from(JSON.stringify(event)), {
+      channel.publish(EXCHANGE, routingKey, Buffer.from(JSON.stringify(event)), { // aqui se publica el mensaje en el exchange orderflow con la etiqueta stock.reserved o stock.rejected, y el contenido es el JSON del evento
         persistent: true,
         contentType: 'application/json',
         messageId: event.eventId,
@@ -85,8 +88,8 @@ async function createMessaging(url) {
         }
 
         try {
-          await handler(event);
-          channel.ack(msg);
+          await handler(event); // Ejecuta la logica de la funcion flecha del index.js del worker, que llama a handleOrderCreated y publica el resultado
+          channel.ack(msg); // Si no hubo error, confirma el mensaje (se borra de la cola)
         } catch (err) {
           if (err.permanent) {
             console.error(`Mensaje inválido; se descarta: ${err.message}`);
@@ -101,6 +104,7 @@ async function createMessaging(url) {
     },
 
     async close() {
+      closing = true;
       await channel.close();
       await connection.close();
     },

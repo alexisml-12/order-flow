@@ -34,17 +34,21 @@ function createApp({ repo, publisher, corsOrigin = '*' }) {
     }
 
     //Crea el pedido en la base de datos con estado Pending. El id es un GUID generado por el servidor.
-    const order = await repo.create(value);
+    const created = await repo.create(value);
 
-    // El pedido ya está guardado como Pending. Publicamos el evento para que Inventory lo procese.
-    // Si la publicación falla, el pedido NO se pierde: queda Pending y se loguea el error.
-    // Etapa 4: aquí se agregará el reintento de publicación para los pedidos que no llegaron al broker.
+    // El pedido ya está guardado como Pending. Intentamos publicar el evento de inmediato.
+    // Si el broker no responde, el pedido NO se pierde: queda con publicadoEn = NULL y el relay
+    // (outboxRelay.js) lo publicará cuando el broker vuelva. Si el evento se llegara a publicar dos
+    // veces, el worker lo detecta como duplicado gracias al mismo eventId.
     try {
-      await publisher.publishOrderCreated(order);
+      await publisher.publishOrderCreated(created); // publica el evento OrderCreated en el exchange orderflow con la etiqueta order.created, y el contenido es el JSON del evento
+      await repo.markPublished(created.id); // marca el pedido como publicado (actualiza publicadoEn = GETDATE()) para que el relay no lo vuelva a publicar
     } catch (err) {
-      console.error(`No se pudo publicar OrderCreated del pedido ${order.id}:`, err.message);
+      console.error(`OrderCreated del pedido ${created.id} quedó pendiente de publicar:`, err.message);
     }
 
+    // eventId es un detalle interno: no se expone en la API.
+    const { eventId: _eventId, ...order } = created;
     return res.status(201).json(order);
   });
 

@@ -13,7 +13,7 @@ function buildRabbitUrl() {
   const port = process.env.RABBITMQ_PORT || '5672';
   const user = encodeURIComponent(required('RABBITMQ_USER'));
   const password = encodeURIComponent(required('RABBITMQ_PASSWORD'));
-  return `amqp://${user}:${password}@${host}:${port}`;
+  return `amqp://${user}:${password}@${host}:${port}/%2F?heartbeat=30`;
 }
 
 function loadConfig() {
