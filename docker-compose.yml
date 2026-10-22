@@ -1,26 +1,99 @@
-# Versión de desarrollo (etapa 3): SQL Server y RabbitMQ.
-# En la etapa 6 este archivo crecerá para levantar TODO el sistema.
+# OrderFlow: levanta TODO el sistema con un solo comando:  docker compose up
+#
+# Las credenciales vienen del archivo .env (ver .env.example). Si no existe, se usan los valores
+# por defecto de abajo, que son SOLO para esta demo local y se pueden cambiar en .env.
+# Los hosts (sqlserver, rabbitmq) los fija este archivo: dentro de Docker cada servicio
+# se encuentra por su nombre, no por "localhost".
+
 services:
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
       ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-OrderFlow_Demo_2026}
     ports:
       - "1433:1433"
     volumes:
       - sqlserver-data:/var/opt/mssql
+    restart: unless-stopped
 
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-orderflow}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-orderflow_demo}
     ports:
-      - "5672:5672"     # puerto AMQP: por aquí hablan los servicios
+      - "5672:5672"     # AMQP: por aquí hablan los servicios
       - "15672:15672"   # panel web de administración: http://localhost:15672
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  orders-api:
+    build: ./orders-api
+    environment:
+      PORT: "3000"
+      CORS_ORIGIN: "*"
+      DB_HOST: sqlserver
+      DB_PORT: "1433"
+      DB_USER: sa
+      DB_PASSWORD: ${MSSQL_SA_PASSWORD:-OrderFlow_Demo_2026}
+      DB_NAME: ${DB_NAME:-OrderFlowDb}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: ${RABBITMQ_USER:-orderflow}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-orderflow_demo}
+    ports:
+      - "3000:3000"
+    depends_on:
+      sqlserver:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      # Orders API solo empieza a escuchar cuando ya tiene base de datos y RabbitMQ listos.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+  inventory-worker:
+    build: ./inventory-worker
+    environment:
+      DB_HOST: sqlserver
+      DB_PORT: "1433"
+      DB_USER: sa
+      DB_PASSWORD: ${MSSQL_SA_PASSWORD:-OrderFlow_Demo_2026}
+      DB_NAME: ${DB_NAME:-OrderFlowDb}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: ${RABBITMQ_USER:-orderflow}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-orderflow_demo}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      orders-api:
+        condition: service_healthy   # Orders API es quien crea las tablas y el seed
+    # Si el worker pierde la conexión con RabbitMQ, se detiene a propósito y Docker lo reinicia.
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Dirección de la API tal como la ve el NAVEGADOR (el puerto 3000 de tu máquina)
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    restart: unless-stopped
 
 volumes:
   sqlserver-data:

@@ -1,0 +1,7 @@
+{
+  "name": "orderflow",
+  "private": true,
+  "scripts": {
+    "test": "npm --prefix orders-api test && npm --prefix inventory-worker test"
+  }
+}

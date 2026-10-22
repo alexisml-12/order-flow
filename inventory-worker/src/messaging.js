@@ -55,7 +55,6 @@ async function createMessaging(url, { onConnectionLost } = {}) {
         orderId: orderEvent.orderId,
         sku: orderEvent.sku,
         cantidad: orderEvent.cantidad,
-        causadoPor: orderEvent.eventId,
         ocurridoEn: new Date().toISOString(),
       };
       const routingKey =

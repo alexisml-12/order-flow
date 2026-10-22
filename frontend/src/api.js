@@ -1,7 +1,9 @@
 // Único lugar del frontend que sabe cómo hablar con Orders API.
-// Todas las rutas empiezan con /api: Vite (en desarrollo) o nginx (en Docker) las reenvían a la API.
+// La dirección de la API sale de la variable VITE_API_URL (se fija al construir el frontend).
+// Si no se define, se usa http://localhost:3000, que es donde la API queda publicada.
+// El navegador llama directo a la API: por eso Orders API tiene CORS habilitado.
 
-const BASE_URL = '/api';
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 // Error con la información que la interfaz necesita para mostrarlo bien.
 export class ApiError extends Error {
