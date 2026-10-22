@@ -7,12 +7,12 @@ Sistema de pedidos con reserva de inventario asíncrona: un panel web registra p
 Requisito: Docker Desktop en ejecución.
 
 ```bash
-docker compose up --build
+docker compose up
 ```
 
 Con ese único comando se construyen y levantan el frontend, los dos servicios, RabbitMQ y SQL Server, y se carga el seed (3 productos con stock 100). No hace falta crear ningún archivo `.env`.
 
-La primera vez tarda unos minutos (descarga de imágenes). SQL Server necesita cerca de un minuto en estar listo: los mensajes de reintento en los logs son normales.
+La primera vez tarda unos minutos porque construye las imágenes y descarga las de SQL Server y RabbitMQ. Si luego modificas el código, usa `docker compose up --build` para reconstruirlas. SQL Server necesita cerca de un minuto en estar listo: los mensajes de reintento en los logs son normales.
 
 | Qué | Dirección |
 |---|---|
